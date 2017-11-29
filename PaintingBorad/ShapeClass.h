@@ -1,6 +1,7 @@
 #pragma once
 
-//#include "stdafx.h"
+#ifndef Shape_Class_H
+#define Shape_Class_H
 
 //enum of 3 type of shapes: LINE, CIRCLE, RECT
 enum Shape { LINE_, CIRCLE_, RECT_, POLYGON_ };
@@ -10,7 +11,7 @@ class Base_shape {
 protected:
 	//主对角线两端点坐标
 	POINT init_pos, last_pos;
-	
+
 public:
 	//指向图形链表中下一个图形
 	Base_shape *Next = NULL;
@@ -23,12 +24,12 @@ public:
 
 	//以两点坐标，及图形类型初始化
 	Base_shape(POINT&, POINT&);
-	
+
 	//获取主对角线两端点坐标
 	void GetPos(POINT&, POINT&) const;
 
 	//设置偏移量
-	virtual void SetShiftAmount(POINT& shift_amount, POINT& pos1_before_move,POINT& pos2_before_move);
+	virtual void SetShiftAmount(POINT& shift_amount, POINT& pos1_before_move, POINT& pos2_before_move);
 
 	//以鼠标消息中含坐标信息的lParam设置last_pos
 	virtual void SetLastPos(LPARAM&);
@@ -42,7 +43,7 @@ public:
 
 class Line :public Base_shape {
 public:
-	Line(POINT& pos1, POINT& pos2) :Base_shape(pos1, pos2){}
+	Line(POINT& pos1, POINT& pos2) :Base_shape(pos1, pos2) {}
 	Line(LPARAM& lParam) :Base_shape(lParam) { this->type = LINE_; }
 	void Paint(HDC&) const;
 	bool isAboveShape(POINT&) const;
@@ -72,12 +73,12 @@ public:
 	int EdgeNum;
 
 	cPolygon(POINT& pos1, POINT& pos2) :Base_shape(pos1, pos2) {
-		this->type = POLYGON_; 
+		this->type = POLYGON_;
 	}
 	cPolygon(LPARAM& lParam) :Base_shape(lParam) {
 		this->init_pos.x = this->init_pos.y = this->last_pos.x = this->last_pos.y = 0;
 		this->head = this->tail = new Line(lParam);
-		this->type = POLYGON_; 
+		this->type = POLYGON_;
 		this->EdgeNum = 0;
 	};
 	void AddVertice(LPARAM& lParam);
@@ -88,10 +89,13 @@ public:
 };
 
 //Convert LPARAM to POINT
-POINT TranslatePos(_In_ LPARAM&) ;
+POINT TranslatePos(_In_ LPARAM&);
 
 //打开画板文件
 void OpenPaintingBoard(_In_ HWND hWnd, _Inout_ Base_shape*& head);
 
 //保存画板文件
 void SavePaitingBoard(_In_ HWND hWnd, _In_ Base_shape* head);
+
+#endif // !Shape_Class_H
+

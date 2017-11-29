@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "ShapeClass.h"
 
+
+
 POINT TranslatePos(_In_ LPARAM& lParam) {
 	POINT pos;
 	pos.x = LOWORD(lParam);

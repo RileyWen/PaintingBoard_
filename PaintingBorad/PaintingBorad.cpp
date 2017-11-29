@@ -114,8 +114,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 POINT pos1_before_move,pos2_before_move;	//移动前主对角线两端点
 bool bIsOnShape = false, one_click = false, isDrawingPolygon = false;
 cPolygon* tmp_polygon = NULL;
-Base_shape *head = NULL, *tmp, *cursor;
+static Base_shape *head = NULL, *tmp, *cursor;
 Shape shape;
+int n = 0;
 //
 //  函数: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -276,8 +277,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			else
 				//如果没点在图形上，则在绘制图形中（因为点击操作只有两种情况，绘图和移动）
 				//在绘制图形中，则下面的函数是随鼠标移动不断更改第二点坐标（第一点由第一次鼠标左击确定）
-				if (shape == POLYGON_)
-					head->SetLastPos(lParam);	
+				if (n++, (n > 2))
+					head->SetLastPos(lParam);
 			
 			//强制重绘界面
 			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT | RDW_ERASE);
@@ -330,7 +331,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			//----------------------------------------------------
 
 			case IDM_OPEN: {
-				
+
 				OpenPaintingBoard(hWnd, head);
 
 				//强制重绘界面
