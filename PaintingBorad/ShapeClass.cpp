@@ -162,6 +162,19 @@ void OpenPaintingBoard(_In_ HWND hWnd, _Inout_ Base_shape*& head)
 					head = new Circle(init_pos, last_pos);
 					((Circle *)head)->r = r;
 					break;
+				case POLYGON_: {
+					head = new cPolygon(init_pos, last_pos);
+					int EdgeNum;
+					fwscanf_s(fin, L"%d", &EdgeNum);
+					((cPolygon*)head)->EdgeNum = EdgeNum;
+					fwscanf_s(fin, L"%ld%ld%ld%ld", &init_pos.x, &init_pos.y, &last_pos.x, &last_pos.y);
+					((cPolygon*)head)->head = ((cPolygon*)head)->tail = new Line(init_pos, last_pos);
+					for (int i = ((cPolygon*)head)->EdgeNum - 1; i > 0; i--) {
+						fwscanf_s(fin, L"%ld%ld%ld%ld", &init_pos.x, &init_pos.y, &last_pos.x, &last_pos.y);
+						((cPolygon*)head)->tail->Next = new Line(init_pos, last_pos);
+						((cPolygon*)head)->tail = (Line *)(((cPolygon*)head)->tail->Next);
+					}
+				}
 				}
 			}
 			else {
@@ -181,14 +194,33 @@ void OpenPaintingBoard(_In_ HWND hWnd, _Inout_ Base_shape*& head)
 					cursor->Next = new Circle(init_pos, last_pos);
 					((Circle *)cursor->Next)->r = r;
 					break;
+				case POLYGON_: {
+					cursor->Next = new cPolygon(init_pos, last_pos);
+					cursor = cursor->Next;
+					int EdgeNum;
+					fwscanf_s(fin, L"%d", &EdgeNum);
+					((cPolygon*)cursor)->EdgeNum = EdgeNum;
+					fwscanf_s(fin, L"%ld%ld%ld%ld", &init_pos.x, &init_pos.y, &last_pos.x, &last_pos.y);
+					((cPolygon*)cursor)->head=((cPolygon*)cursor)->tail=new Line(init_pos, last_pos);
+					Line *line_cursor = ((cPolygon*)cursor)->head;
+					for (int i = EdgeNum-1; i > 0; i--) {
+						fwscanf_s(fin, L"%ld%ld%ld%ld", &init_pos.x, &init_pos.y, &last_pos.x, &last_pos.y);
+						((cPolygon*)cursor)->tail->Next = new Line(init_pos, last_pos);
+						((cPolygon*)cursor)->tail = (Line *)(((cPolygon*)cursor)->tail->Next);
+
+						line_cursor = (Line *)line_cursor->Next;
+					}
+				}
+
 				}
 			}
 		}
-
+		fclose(fin);
 	}
 	else {
 		MessageBox(hWnd, TEXT("File Unvalid"), NULL, MB_ICONERROR);
 	}
+
 }
 
 void SavePaitingBoard(HWND hWnd, Base_shape * head)
@@ -219,6 +251,15 @@ void SavePaitingBoard(HWND hWnd, Base_shape * head)
 				fwprintf(fout, L"%d %ld %ld %ld %ld ",tmp_paint->type, init_pos.x, init_pos.y, last_pos.x, last_pos.y);
 				if (tmp_paint->type == CIRCLE_)
 					fwprintf(fout, L"%lf ", ((Circle *)tmp_paint)->r);
+				if (tmp_paint->type == POLYGON_) {
+					fwprintf(fout, L"%d ", ((cPolygon*)tmp_paint)->EdgeNum);
+					Line *line_cursor = ((cPolygon*)tmp_paint)->head;
+					for (int i = ((cPolygon*)tmp_paint)->EdgeNum; i > 0; i--) {
+						line_cursor->GetPos(init_pos, last_pos);
+						fwprintf(fout, L"%ld %ld %ld %ld ", init_pos.x, init_pos.y, last_pos.x, last_pos.y);
+						line_cursor = (Line *)line_cursor->Next;
+					}
+				}
 				fwprintf(fout, L"\n");
 			} while (tmp_paint = tmp_paint->Next);
 			fclose(fout);
@@ -230,4 +271,48 @@ void SavePaitingBoard(HWND hWnd, Base_shape * head)
 		MessageBox(NULL, TEXT("File Unvalid"), NULL, MB_ICONERROR);
 	}
 	
+}
+
+void cPolygon::AddVertice(LPARAM & lParam)
+{
+	this->EdgeNum++;
+	this->tail->SetLastPos(lParam);
+	POINT pos1, pos2;
+	this->tail->GetPos(pos2, pos1);
+	pos2 = TranslatePos(lParam);
+	this->tail->Next = new Line(pos1, pos2);
+	this->tail = (Line *)this->tail->Next;
+}
+
+void cPolygon::AddLastVertice(LPARAM & lParam)
+{
+	this->EdgeNum+=2;
+	POINT pos1, pos2, unused;
+	this->tail->GetPos(unused, pos1);
+	this->head->GetPos(pos2, unused);
+	this->tail->Next = new Line(pos1, pos2);
+	this->tail = (Line *)this->tail->Next;
+}
+
+void cPolygon::Paint(HDC &hdc) const
+{
+	Line *cursor = this->head;
+	while (cursor) {
+		cursor->Paint(hdc);
+		cursor = (Line *)cursor->Next;
+	}
+}
+
+bool cPolygon::isAboveShape(POINT &pos) const
+{
+	Line *cursor = this->head;
+	bool isAboveLine = false;
+	while (cursor && !(isAboveLine = cursor->isAboveShape(pos)))
+		cursor = (Line *)cursor->Next;
+	return isAboveLine;
+}
+
+void cPolygon::SetLastPos(LPARAM &lParam)
+{
+	this->tail->SetLastPos(lParam);
 }

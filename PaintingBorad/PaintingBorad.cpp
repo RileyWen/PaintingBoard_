@@ -112,7 +112,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 }
 
 POINT pos1_before_move,pos2_before_move;	//移动前主对角线两端点
-bool bIsOnShape = false, one_click = false;
+bool bIsOnShape = false, one_click = false, isDrawingPolygon = false;
+cPolygon* tmp_polygon = NULL;
 Base_shape *head = NULL, *tmp, *cursor;
 Shape shape;
 //
@@ -141,9 +142,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			0, 20, 60, 15, hWnd, (HMENU)2, hInst, NULL);//Y坐标静态文本框
 
 		break;
+
 	case WM_LBUTTONUP: {
 		bIsOnShape = false;
 		one_click = false;
+		break;
+	}
+
+	case WM_RBUTTONDOWN: {
+		isDrawingPolygon = false;
+		tmp_polygon->AddLastVertice(lParam);
+		RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT | RDW_ERASE);
 		break;
 	}
 
@@ -162,15 +171,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			case CIRCLE_:
 				head = new Circle(lParam);
 				break;
+			case POLYGON_:
+				if (!isDrawingPolygon) {
+					head = new cPolygon(lParam);
+					isDrawingPolygon = true;
+					tmp_polygon = (cPolygon *)head;
+				}
+				else {
+					((cPolygon*)head)->AddVertice(lParam);
+				}
+				break;
 			}
 		}
 		else {	
+
 			//打印鼠标指针位置
 			wchar_t buf[20];
 			wsprintf(buf, L"X:%ld", init_pos.x);
 			SetWindowText(hStatic_x, buf);
 			wsprintf(buf, L"Y:%ld", init_pos.y);
 			SetWindowText(hStatic_y, buf);
+
+			if (isDrawingPolygon) {
+				tmp_polygon->AddVertice(lParam);
+				break;
+			}
 
 			//鼠标左键点击时，遍历
 			cursor = head;
@@ -190,6 +215,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				case CIRCLE_:
 					head = new Circle(lParam);
 					break;
+				case POLYGON_:
+					if (!isDrawingPolygon) {
+						head = new cPolygon(lParam);
+						isDrawingPolygon = true;
+						tmp_polygon = (cPolygon *)head;
+					}
 				}
 				head->Next = tmp;
 			}
@@ -201,28 +232,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_MOUSEMOVE:
 		{
 		if (wParam & MK_LBUTTON) {
+			//计算偏移量
+			current_pos = TranslatePos(lParam);
+			shift_amount.x = current_pos.x - init_pos.x;
+			shift_amount.y = current_pos.y - init_pos.y;
+
 			if (bIsOnShape) {
 				//如果点在图形上，则移动图形
 
-				//这个if的作用是在一次移动中只获取一次移动前位置
-				if (!one_click) {
-					cursor->GetPos(pos1_before_move, pos2_before_move);
-					one_click = true;
+				if (cursor->type!=POLYGON_){
+					//这个if的作用是在一次移动中只获取一次移动前位置
+					if (!one_click) {
+						cursor->GetPos(pos1_before_move, pos2_before_move);
+						one_click = true;
+					}
+
+					cursor->SetShiftAmount(shift_amount, pos1_before_move, pos2_before_move);
 				}
-
-				//计算偏移量
-				current_pos = TranslatePos(lParam);
-				shift_amount.x = current_pos.x - init_pos.x;
-				shift_amount.y = current_pos.y - init_pos.y;
-
-				cursor->SetShiftAmount(shift_amount, pos1_before_move,pos2_before_move);
+				else {
+					Line* line_cursor = ((cPolygon*)cursor)->head;
+					int num_edge = ((cPolygon*)cursor)->EdgeNum;
+					POINT pos_before_move[1000][2];
+					int num = 0;
+					//这个if的作用是在一次移动中只获取一次移动前位置
+					if (!one_click) {
+						one_click = true;
+						while (line_cursor) {
+							line_cursor->GetPos(pos_before_move[num][0], pos_before_move[num][1]);
+							num++;
+							line_cursor = (Line*)line_cursor->Next;
+						}
+					}
+					num=0;
+					line_cursor = ((cPolygon*)cursor)->head;
+					while (line_cursor) {
+						line_cursor->SetShiftAmount(shift_amount, pos_before_move[num][0], pos_before_move[num][1]);
+						num++;
+						line_cursor = (Line*)line_cursor->Next;
+					}
+					
+				}
 			}
 			else
 				//如果没点在图形上，则在绘制图形中（因为点击操作只有两种情况，绘图和移动）
 				//在绘制图形中，则下面的函数是随鼠标移动不断更改第二点坐标（第一点由第一次鼠标左击确定）
-				head->SetLastPos(lParam);	
+					head->SetLastPos(lParam);	
 			
 			//强制重绘界面
+			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT | RDW_ERASE);
+			}
+
+		if (isDrawingPolygon) {
+			tmp_polygon->SetLastPos(lParam);
 			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT | RDW_ERASE);
 			}
 		}
@@ -232,7 +293,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
-
 		//如果图形链表非空，遍历链表，执行每个图形对应的绘图函数
 		if (head){
 			Base_shape *tmp_paint;
@@ -262,6 +322,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case SHAPE_RECT:
 				shape = RECT_;
+				break;
+			case SHAPE_POLYGON:
+				shape = POLYGON_;
 				break;
 			//----------------------------------------------------
 
