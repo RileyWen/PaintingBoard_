@@ -240,7 +240,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if (bIsOnShape) {
 				//如果点在图形上，则移动图形
 
-				if (cursor->type!=POLYGON_){
+				if (cursor->type != POLYGON_) {
 					//这个if的作用是在一次移动中只获取一次移动前位置
 					if (!one_click) {
 						cursor->GetPos(pos1_before_move, pos2_before_move);
@@ -263,19 +263,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							line_cursor = (Line*)line_cursor->Next;
 						}
 					}
-					num=0;
+					num = 0;
 					line_cursor = ((cPolygon*)cursor)->head;
 					while (line_cursor) {
 						line_cursor->SetShiftAmount(shift_amount, pos_before_move[num][0], pos_before_move[num][1]);
 						num++;
 						line_cursor = (Line*)line_cursor->Next;
 					}
-					
+
 				}
 			}
 			else
 				//如果没点在图形上，则在绘制图形中（因为点击操作只有两种情况，绘图和移动）
 				//在绘制图形中，则下面的函数是随鼠标移动不断更改第二点坐标（第一点由第一次鼠标左击确定）
+				if (shape == POLYGON_)
 					head->SetLastPos(lParam);	
 			
 			//强制重绘界面
